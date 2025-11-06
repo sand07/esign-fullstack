@@ -1,0 +1,78 @@
+# Systemd Service File untuk E-Sign Application
+# File ini untuk alternatif deployment tanpa PM2
+#
+# Instalasi:
+# 1. Copy file ini ke /etc/systemd/system/esign.service
+#    sudo cp deployment/esign.service /etc/systemd/system/
+#
+# 2. Edit path dan user sesuai environment Anda
+#    sudo nano /etc/systemd/system/esign.service
+#
+# 3. Reload systemd dan start service
+#    sudo systemctl daemon-reload
+#    sudo systemctl enable esign
+#    sudo systemctl start esign
+#
+# 4. Check status
+#    sudo systemctl status esign
+#
+# 5. View logs
+#    sudo journalctl -u esign -f
+
+[Unit]
+Description=E-Sign Electronic Signature Application
+Documentation=https://github.com/sand07/esign-fullstack
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+
+# User dan Group (SESUAIKAN dengan user Anda)
+User=esign
+Group=esign
+
+# Working Directory (SESUAIKAN dengan path instalasi Anda)
+WorkingDirectory=/home/esign/esign-fullstack
+
+# Environment
+Environment=NODE_ENV=production
+Environment=PORT=3999
+
+# Load environment dari file
+EnvironmentFile=/home/esign/esign-fullstack/.env
+
+# Command untuk menjalankan aplikasi
+# Pastikan path node sudah benar
+ExecStart=/usr/bin/node node_modules/next/dist/bin/next start -p 3999
+
+# Restart policy
+Restart=always
+RestartSec=10s
+
+# Limit restart dalam 5 menit
+StartLimitInterval=5min
+StartLimitBurst=5
+
+# Standard output and error
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=esign
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/esign/esign-fullstack
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Kill signal
+KillSignal=SIGTERM
+KillMode=mixed
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
