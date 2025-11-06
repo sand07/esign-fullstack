@@ -19,6 +19,7 @@
     "ahooks": "^3.7.4",
     "antd": "^5.2.0",
     "axios": "^1.2.1",
+    "bcryptjs": "^2.4.3",
     "canvas": "^2.11.0",
     "eslint": "8.29.0",
     "eslint-config-next": "13.0.6",

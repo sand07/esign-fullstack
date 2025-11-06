@@ -1,5 +1,8 @@
 import { upsertUserAttr } from "lib/auth-utils";
 import NextAuth from "next-auth/next";
+import CredentialsProvider from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
+import prisma from "lib/prisma";
 
 const masterClientId = process.env.MASTER_ID;
 const masterClientSecret = process.env.MASTER_SECRET;
@@ -48,17 +51,30 @@ export default async function (req, res) {
       },
       async jwt({ token, user, account, profile, isNewUser }) {
         if (account) {
-          token.accessToken = account?.access_token;
-          token.expires = profile?.exp;
-          token.useragent = useragent;
-          token.username = profile?.name;
-          token.id = account?.providerAccountId;
-          token.role = profile?.role;
-          token.group = profile?.group;
-          token.employee_number = profile?.employee_number;
-          token.organization_id = profile?.organization_id;
-          token.current_role = user?.current_role;
-          token.nik = user?.nik;
+          // Handle Credentials Provider
+          if (account.type === "credentials") {
+            token.id = user.id;
+            token.username = user.username;
+            token.role = user.role;
+            token.group = user.group;
+            token.employee_number = user.employee_number;
+            token.organization_id = user.organization_id;
+            token.current_role = user.role;
+            token.nik = user.nik;
+          } else {
+            // Handle OAuth Provider
+            token.accessToken = account?.access_token;
+            token.expires = profile?.exp;
+            token.useragent = useragent;
+            token.username = profile?.name;
+            token.id = account?.providerAccountId;
+            token.role = profile?.role;
+            token.group = profile?.group;
+            token.employee_number = profile?.employee_number;
+            token.organization_id = profile?.organization_id;
+            token.current_role = user?.current_role;
+            token.nik = user?.nik;
+          }
         }
         return token;
       },
@@ -73,6 +89,85 @@ export default async function (req, res) {
       secret: process.env.NEXTAUTH_SECRET,
     },
     providers: [
+      CredentialsProvider({
+        id: "credentials",
+        name: "Credentials",
+        credentials: {
+          username: { label: "Username", type: "text" },
+          password: { label: "Password", type: "password" }
+        },
+        async authorize(credentials, req) {
+          try {
+            const { username, password } = credentials;
+
+            // Cari user berdasarkan username atau email
+            const user = await prisma.User.findFirst({
+              where: {
+                OR: [
+                  { username: username },
+                  { email: username }
+                ]
+              }
+            });
+
+            if (!user) {
+              throw new Error("Username atau password salah");
+            }
+
+            // Cek apakah user memiliki password (untuk local auth)
+            if (!user.password) {
+              throw new Error("Akun ini tidak mendukung login lokal");
+            }
+
+            // Verifikasi password
+            const isValid = await bcrypt.compare(password, user.password);
+
+            if (!isValid) {
+              throw new Error("Username atau password salah");
+            }
+
+            // Update last login
+            await prisma.User.update({
+              where: { id: user.id },
+              data: {
+                last_login: new Date(),
+                is_online: true
+              }
+            });
+
+            // Log login history
+            const ip = req?.headers?.["x-forwarded-for"] || req?.connection?.remoteAddress;
+            const useragent = req?.headers?.["user-agent"];
+
+            await prisma.History.create({
+              data: {
+                user_id: user.id,
+                ip_address: ip,
+                action: "LOGIN",
+                type: "ACCOUNT",
+                activity: "Local Login",
+                created_at: new Date(),
+                useragent,
+              },
+            });
+
+            return {
+              id: user.id,
+              email: user.email,
+              username: user.username,
+              group: user.group || "LOCAL",
+              role: user.role || "USER",
+              employee_number: user.employee_number,
+              organization_id: user.organization_id,
+              image: user.image,
+              nik: user.nik,
+            };
+          } catch (error) {
+            console.error("Login error:", error);
+            return null;
+          }
+        }
+      }),
       {
         name: "SIMASTER",
         id: "esign",
