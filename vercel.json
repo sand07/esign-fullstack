@@ -1,0 +1,21 @@
+{
+  "buildCommand": "npx prisma generate && yarn build",
+  "devCommand": "yarn dev",
+  "installCommand": "yarn install",
+  "framework": "nextjs",
+  "regions": ["sin1"],
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "functions": {
+    "pages/api/**/*.js": {
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/esign/:path*",
+      "destination": "/:path*"
+    }
+  ]
+}
