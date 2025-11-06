@@ -1,0 +1,9 @@
+Saya akan membuat semua Models sekaligus untuk menghemat waktu.
+Models yang akan dibuat:
+1. User_model.php
+2. Kategori_model.php  
+3. Pertanyaan_model.php
+4. Survey_model.php
+5. Laporan_model.php
+
+Setiap model akan lengkap dengan fungsi CRUD dan query khusus.
